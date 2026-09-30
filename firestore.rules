@@ -1,0 +1,270 @@
+rules_version = '2';
+
+// Permit & Visa Portal — Firestore security rules.
+// Deny by default. Roles come from users/{uid} (read with get()).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ------------------------------------------------------------ helpers
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userPath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+
+    function profile() {
+      return get(userPath()).data;
+    }
+
+    // A missing profile makes get() fail, which denies the request.
+    function isActive() {
+      return signedIn() && profile().active == true;
+    }
+
+    function isAdmin() {
+      return isActive() && profile().role == 'admin';
+    }
+
+    function isHr() {
+      return isActive() && profile().role == 'hr';
+    }
+
+    function userCompanyIds() {
+      return profile().companyIds;
+    }
+
+    function canAccessCompany(companyId) {
+      return isAdmin() || (isHr() && companyId in userCompanyIds());
+    }
+
+    function isIsoDate(v) {
+      return v is string
+        && v.matches('^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$');
+    }
+
+    function isText(v, min, max) {
+      return v is string && v.size() >= min && v.size() <= max;
+    }
+
+    function data() {
+      return request.resource.data;
+    }
+
+    function keysExactly(required, optional) {
+      return data().keys().hasAll(required)
+        && data().keys().hasOnly(required.concat(optional));
+    }
+
+    function unchanged(field) {
+      return data()[field] == resource.data[field];
+    }
+
+    function stampsOnCreate() {
+      return data().createdAt == request.time
+        && data().updatedAt == request.time
+        && data().createdBy == request.auth.uid
+        && data().updatedBy == request.auth.uid;
+    }
+
+    function stampsOnUpdate() {
+      return unchanged('createdAt')
+        && unchanged('createdBy')
+        && data().updatedAt == request.time
+        && data().updatedBy == request.auth.uid;
+    }
+
+    // ------------------------------------------------------------- users
+    function validUser() {
+      return keysExactly(['email', 'displayName', 'role', 'companyIds', 'active'], [])
+        && isText(data().email, 3, 254)
+        && isText(data().displayName, 1, 120)
+        && data().role in ['admin', 'hr']
+        && data().companyIds is list
+        && data().companyIds.size() <= 30
+        && (data().role == 'admin' || data().companyIds.size() > 0)
+        && data().active is bool;
+    }
+
+    match /users/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow create: if isAdmin() && validUser();
+      allow update: if isAdmin() && validUser() && unchanged('email');
+      allow delete: if false;
+    }
+
+    // ------------------------------------------------------- master data
+    function validCompany() {
+      return keysExactly(['name', 'code', 'active', 'createdAt'], [])
+        && isText(data().name, 1, 120)
+        && data().code is string
+        && data().code.matches('^[A-Z0-9]{2,10}$')
+        && data().active is bool;
+    }
+
+    match /companies/{companyId} {
+      allow read: if isActive();
+      allow create: if isAdmin() && validCompany() && data().code == companyId && data().createdAt == request.time;
+      allow update: if isAdmin() && validCompany() && unchanged('createdAt') && unchanged('code');
+      allow delete: if false;
+    }
+
+    function validDepartment() {
+      return keysExactly(['name', 'companyId', 'active'], [])
+        && isText(data().name, 1, 120)
+        && isText(data().companyId, 1, 128)
+        && exists(/databases/$(database)/documents/companies/$(data().companyId))
+        && data().active is bool;
+    }
+
+    match /departments/{id} {
+      allow read: if isActive();
+      allow create: if isAdmin() && validDepartment();
+      allow update: if isAdmin() && validDepartment() && unchanged('companyId');
+      allow delete: if false;
+    }
+
+    function validDesignation() {
+      return keysExactly(['name', 'active'], [])
+        && isText(data().name, 1, 120)
+        && data().active is bool;
+    }
+
+    match /designations/{id} {
+      allow read: if isActive();
+      allow create, update: if isAdmin() && validDesignation();
+      allow delete: if false;
+    }
+
+    // --------------------------------------------------------- employees
+    function validPassport(p) {
+      return p is map
+        && p.keys().hasAll(['number', 'nationality', 'issueDate', 'expiryDate'])
+        && p.keys().hasOnly(['number', 'nationality', 'issueDate', 'expiryDate'])
+        && isText(p.number, 1, 30)
+        && isText(p.nationality, 1, 60)
+        && isIsoDate(p.issueDate)
+        && isIsoDate(p.expiryDate)
+        && p.expiryDate > p.issueDate;
+    }
+
+    function validEmployee() {
+      return keysExactly([
+          'firstName', 'lastName', 'email',
+          'companyId', 'departmentId', 'designationId',
+          'companyName', 'departmentName', 'designationName',
+          'searchText', 'passport', 'active',
+          'createdAt', 'updatedAt', 'createdBy', 'updatedBy'
+        ], [])
+        && isText(data().firstName, 1, 60)
+        && isText(data().lastName, 1, 60)
+        && isText(data().email, 0, 254)
+        && isText(data().companyId, 1, 128)
+        && isText(data().departmentId, 1, 128)
+        && isText(data().designationId, 1, 128)
+        && isText(data().companyName, 0, 120)
+        && isText(data().departmentName, 0, 120)
+        && isText(data().designationName, 0, 120)
+        && isText(data().searchText, 0, 500)
+        && validPassport(data().passport)
+        && data().active is bool;
+    }
+
+    match /employees/{employeeId} {
+      allow read: if canAccessCompany(resource.data.companyId);
+      allow create: if canAccessCompany(data().companyId)
+        && validEmployee()
+        && stampsOnCreate();
+      allow update: if canAccessCompany(resource.data.companyId)
+        && canAccessCompany(data().companyId)
+        && validEmployee()
+        && stampsOnUpdate();
+      allow delete: if false;
+    }
+
+    // ---------------------------------------------------- authorisations
+    function employeeAfter(employeeId) {
+      return getAfter(/databases/$(database)/documents/employees/$(employeeId)).data;
+    }
+
+    function authAfter(authId) {
+      return getAfter(/databases/$(database)/documents/authorisations/$(authId)).data;
+    }
+
+    function validAuthorisation() {
+      return keysExactly([
+          'employeeId', 'companyId', 'type', 'referenceNumber',
+          'issuedDate', 'expiryDate', 'isCurrent', 'supersededBy', 'notes',
+          'createdAt', 'updatedAt', 'createdBy', 'updatedBy'
+        ], [])
+        && isText(data().employeeId, 1, 128)
+        && isText(data().companyId, 1, 128)
+        && data().type in ['WORK_PERMIT', 'VISA']
+        && isText(data().referenceNumber, 1, 60)
+        && isIsoDate(data().issuedDate)
+        && isIsoDate(data().expiryDate)
+        && data().expiryDate > data().issuedDate
+        && data().isCurrent is bool
+        && (data().supersededBy == null || isText(data().supersededBy, 1, 128))
+        && isText(data().notes, 0, 1000)
+        // companyId must match the employee's company (also inside a batch)
+        && employeeAfter(data().employeeId).companyId == data().companyId;
+    }
+
+    // A record may only stop being current when it is superseded by a
+    // current record of the same employee and type (renewal batch).
+    function validSupersede() {
+      return (resource.data.isCurrent == data().isCurrent && unchanged('supersededBy'))
+        || (
+          resource.data.isCurrent == true
+          && data().isCurrent == false
+          && data().supersededBy is string
+          && authAfter(data().supersededBy).isCurrent == true
+          && authAfter(data().supersededBy).employeeId == data().employeeId
+          && authAfter(data().supersededBy).type == data().type
+        );
+    }
+
+    match /authorisations/{authId} {
+      allow read: if canAccessCompany(resource.data.companyId);
+      allow create: if canAccessCompany(data().companyId)
+        && validAuthorisation()
+        && data().isCurrent == true
+        && data().supersededBy == null
+        && stampsOnCreate();
+      allow update: if canAccessCompany(resource.data.companyId)
+        && canAccessCompany(data().companyId)
+        && validAuthorisation()
+        && unchanged('employeeId')
+        && unchanged('type')
+        && validSupersede()
+        && stampsOnUpdate();
+      allow delete: if false;
+    }
+
+    // --------------------------------------------------- notificationLog
+    // Written only by the cron route through the Admin SDK.
+    match /notificationLog/{id} {
+      allow read, write: if false;
+    }
+
+    // ---------------------------------------------------------- auditLog
+    function validAudit() {
+      return keysExactly(['entity', 'entityId', 'action', 'before', 'after', 'uid', 'at'], [])
+        && data().entity in ['company', 'department', 'designation', 'user', 'employee', 'authorisation']
+        && isText(data().entityId, 1, 128)
+        && data().action in ['create', 'update', 'renew', 'deactivate']
+        && (data().before == null || data().before is map)
+        && (data().after == null || data().after is map)
+        && data().uid == request.auth.uid
+        && data().at == request.time;
+    }
+
+    match /auditLog/{id} {
+      allow read: if isAdmin();
+      allow create: if isActive() && validAudit();
+      allow update, delete: if false;
+    }
+  }
+}

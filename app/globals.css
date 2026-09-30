@@ -1,0 +1,190 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: "Inter", "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Cascadia Code", "JetBrains Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-status-good: var(--status-good);
+  --color-status-warning: var(--status-warning);
+  --color-status-critical: var(--status-critical);
+  --color-status-missing: var(--status-missing);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+}
+
+/*
+ * Brand: deep ink navy + teal. Light mode keeps a dark sidebar for contrast.
+ * Status colours are FIXED across themes (validated against both card
+ * surfaces) and always ship with an icon or label, never colour alone.
+ */
+:root {
+  --radius: 0.75rem;
+
+  --background: oklch(0.982 0.004 250);
+  --foreground: oklch(0.21 0.025 262);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.21 0.025 262);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.21 0.025 262);
+  --primary: oklch(0.52 0.105 192);
+  --primary-foreground: oklch(0.99 0.005 190);
+  --secondary: oklch(0.957 0.008 250);
+  --secondary-foreground: oklch(0.26 0.025 262);
+  --muted: oklch(0.962 0.006 250);
+  --muted-foreground: oklch(0.52 0.02 260);
+  --accent: oklch(0.95 0.02 195);
+  --accent-foreground: oklch(0.3 0.06 200);
+  --destructive: oklch(0.565 0.2 26);
+  --success: #0ca30c;
+  --success-foreground: oklch(0.99 0 0);
+  --warning: #fab219;
+  --warning-foreground: oklch(0.27 0.06 70);
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-critical: #d03b3b;
+  --status-missing: #8a8f98;
+  --border: oklch(0.918 0.008 255);
+  --input: oklch(0.9 0.01 255);
+  --ring: oklch(0.6 0.1 192);
+
+  --chart-1: oklch(0.55 0.11 192);
+  --chart-2: oklch(0.6 0.15 255);
+  --chart-3: oklch(0.65 0.14 300);
+  --chart-4: oklch(0.75 0.14 75);
+  --chart-5: oklch(0.6 0.17 25);
+
+  --sidebar: oklch(0.215 0.032 258);
+  --sidebar-foreground: oklch(0.94 0.01 250);
+  --sidebar-muted: oklch(0.7 0.025 255);
+  --sidebar-primary: oklch(0.76 0.12 185);
+  --sidebar-primary-foreground: oklch(0.18 0.03 220);
+  --sidebar-accent: oklch(0.29 0.035 258);
+  --sidebar-accent-foreground: oklch(0.98 0.005 250);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.76 0.12 185);
+
+  --page-glow: oklch(0.93 0.04 195 / 55%);
+}
+
+.dark {
+  --background: oklch(0.155 0.016 258);
+  --foreground: oklch(0.955 0.006 250);
+  --card: oklch(0.198 0.02 258);
+  --card-foreground: oklch(0.955 0.006 250);
+  --popover: oklch(0.215 0.022 258);
+  --popover-foreground: oklch(0.955 0.006 250);
+  --primary: oklch(0.74 0.115 186);
+  --primary-foreground: oklch(0.19 0.035 210);
+  --secondary: oklch(0.255 0.022 258);
+  --secondary-foreground: oklch(0.94 0.008 250);
+  --muted: oklch(0.245 0.02 258);
+  --muted-foreground: oklch(0.71 0.018 255);
+  --accent: oklch(0.28 0.04 200);
+  --accent-foreground: oklch(0.93 0.03 190);
+  --destructive: oklch(0.66 0.19 24);
+  --success: #0ca30c;
+  --success-foreground: oklch(0.99 0 0);
+  --warning: #fab219;
+  --warning-foreground: oklch(0.2 0.04 70);
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-critical: #d03b3b;
+  --status-missing: #8a8f98;
+  --border: oklch(1 0 0 / 9%);
+  --input: oklch(1 0 0 / 14%);
+  --ring: oklch(0.7 0.11 186);
+
+  --chart-1: oklch(0.72 0.12 186);
+  --chart-2: oklch(0.68 0.15 255);
+  --chart-3: oklch(0.7 0.14 300);
+  --chart-4: oklch(0.8 0.14 80);
+  --chart-5: oklch(0.68 0.17 25);
+
+  --sidebar: oklch(0.13 0.016 258);
+  --sidebar-foreground: oklch(0.94 0.008 250);
+  --sidebar-muted: oklch(0.66 0.02 255);
+  --sidebar-primary: oklch(0.76 0.12 185);
+  --sidebar-primary-foreground: oklch(0.18 0.03 220);
+  --sidebar-accent: oklch(0.22 0.025 258);
+  --sidebar-accent-foreground: oklch(0.98 0.005 250);
+  --sidebar-border: oklch(1 0 0 / 7%);
+  --sidebar-ring: oklch(0.76 0.12 185);
+
+  --page-glow: oklch(0.4 0.08 195 / 18%);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+  ::selection {
+    background: color-mix(in oklch, var(--primary) 25%, transparent);
+  }
+}
+
+@layer utilities {
+  /* soft brand glow behind page content */
+  .page-glow {
+    background-image: radial-gradient(60rem 28rem at 85% -10%, var(--page-glow), transparent 70%);
+  }
+  /* dotted grid used on the sign-in brand panel */
+  .bg-grid {
+    background-image: radial-gradient(color-mix(in oklch, currentColor 18%, transparent) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}

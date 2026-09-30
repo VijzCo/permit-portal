@@ -1,0 +1,44 @@
+import { z } from "zod";
+import { emailSchema, requiredText } from "@/lib/schemas/common";
+
+export const ROLES = ["admin", "hr"] as const;
+export const roleSchema = z.enum(ROLES);
+export type Role = z.infer<typeof roleSchema>;
+
+export const userFieldsSchema = z.object({
+  email: emailSchema,
+  displayName: requiredText("Display name"),
+  role: roleSchema,
+  companyIds: z.array(z.string().min(1)).max(30),
+  active: z.boolean(),
+});
+
+const hrNeedsCompany = {
+  check: (u: { role: Role; companyIds: string[] }) => u.role === "admin" || u.companyIds.length > 0,
+  message: { message: "HR users need at least one company", path: ["companyIds"] },
+};
+
+export const userInputSchema = userFieldsSchema.refine(hrNeedsCompany.check, hrNeedsCompany.message);
+export type UserInput = z.infer<typeof userInputSchema>;
+
+/** Invite form: profile + the temporary password the admin gives the user. */
+export const createUserSchema = userFieldsSchema
+  .extend({
+    temporaryPassword: z
+      .string()
+      .min(8, "At least 8 characters")
+      .max(128, "At most 128 characters"),
+  })
+  .refine(hrNeedsCompany.check, hrNeedsCompany.message);
+export type CreateUserInput = z.infer<typeof createUserSchema>;
+
+/** `users/{uid}` — id is the Firebase Auth uid. */
+export interface AppUser extends UserInput {
+  id: string;
+}
+
+/** Admins see every company; HR sees only `companyIds`. */
+export function accessibleCompanyIds(user: AppUser, allCompanyIds: readonly string[]): string[] {
+  if (user.role === "admin") return [...allCompanyIds];
+  return user.companyIds.filter((id) => allCompanyIds.includes(id));
+}

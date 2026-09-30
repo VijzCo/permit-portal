@@ -1,0 +1,39 @@
+# dependencies
+node_modules/
+
+# next.js
+.next/
+out/
+build/
+next-env.d.ts
+*.tsbuildinfo
+
+# testing
+coverage/
+playwright-report/
+test-results/
+blob-report/
+
+# env / secrets
+.env
+.env.*
+!.env.example
+!.env.emulator.example
+service-account*.json
+*-service-account.json
+
+# firebase
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
+ui-debug.log
+database-debug.log
+pubsub-debug.log
+emulator-data/
+
+# misc
+.vercel
+.DS_Store
+Thumbs.db
+*.log
