@@ -9,6 +9,7 @@ const USERS: AlertUser[] = [
   { email: "HR.RWD@x.co", role: "hr", companyIds: ["RWD"], active: true },
   { email: "hr.both@x.co", role: "hr", companyIds: ["RWD", "DFS"], active: true },
   { email: "hr.off@x.co", role: "hr", companyIds: ["RWD"], active: false },
+  { email: "viewer@x.co", role: "viewer", companyIds: ["RWD", "DFS", "QA"], active: true },
 ];
 
 function input(overrides: Partial<AlertInput> = {}): AlertInput {
@@ -97,5 +98,15 @@ describe("planDigests", () => {
 describe("candidateLogIds", () => {
   it("lists the current threshold id of each current record", () => {
     expect(candidateLogIds(input().authorisations, NOW).sort()).toEqual(["a1_30", "a2_OVERDUE_2026-40", "a3_7", "a4_7"]);
+  });
+});
+
+describe("viewers", () => {
+  it("never receive digests", () => {
+    const all = [recipientsFor("RWD", USERS), recipientsFor("DFS", USERS), recipientsFor("QA", USERS)];
+    for (const r of all) {
+      expect(r.to).not.toContain("viewer@x.co");
+      expect(r.bcc).not.toContain("viewer@x.co");
+    }
   });
 });

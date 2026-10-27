@@ -58,11 +58,12 @@ const EMPLOYEES: SeedEmployee[] = [
   { id: "emp-012", first: "Zhang", last: "Min", nationality: "Chinese", company: "QA", dept: "Administration", designation: "des-pm", wp: -2, visa: 180, passportDays: 1000, active: false },
 ];
 
-const USERS = [
+const USERS: { email: string; displayName: string; role: "admin" | "hr" | "viewer"; companyIds: string[]; active: boolean }[] = [
   { email: "admin@demo.local", displayName: "Demo Admin", role: "admin" as const, companyIds: [] as string[], active: true },
   { email: "hr.rwd@demo.local", displayName: "HR RW Design", role: "hr" as const, companyIds: ["RWD"], active: true },
   { email: "hr.dfs@demo.local", displayName: "HR DutyFreeSourcing", role: "hr" as const, companyIds: ["DFS"], active: true },
   { email: "hr.qa@demo.local", displayName: "HR Quantum Apparel", role: "hr" as const, companyIds: ["QA"], active: true },
+  { email: "viewer@demo.local", displayName: "Viewer RW Design", role: "viewer" as const, companyIds: ["RWD"], active: true },
   { email: "inactive@demo.local", displayName: "Inactive HR", role: "hr" as const, companyIds: ["RWD"], active: false },
 ];
 

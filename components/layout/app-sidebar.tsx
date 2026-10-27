@@ -15,6 +15,7 @@ import { BrandMark } from "@/components/layout/brand-mark";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { useAuth } from "@/components/providers/auth-provider";
 import { usePortalData } from "@/components/providers/portal-data-provider";
+import { ROLE_LABELS } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
@@ -117,7 +118,7 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium">{profile?.displayName}</span>
-                <span className="block truncate text-xs text-sidebar-muted capitalize">{profile?.role}</span>
+                <span className="block truncate text-xs text-sidebar-muted">{profile ? ROLE_LABELS[profile.role] : ""}</span>
               </span>
               <ChevronsUpDown className="size-4 text-sidebar-muted" aria-hidden />
             </button>

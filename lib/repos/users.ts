@@ -13,8 +13,9 @@ import { createAuthAccount, getDb, getFirebaseAuth } from "@/lib/firebase/client
 import { appendAudit, bool, COLLECTIONS, str, strArray, type ErrorHandler } from "@/lib/repos/shared";
 import type { AppUser, Role, UserInput } from "@/lib/schemas";
 
+/** Unknown values fall back to the least-privileged role. */
 function mapRole(v: string): Role {
-  return v === "admin" ? "admin" : "hr";
+  return v === "admin" || v === "hr" ? v : "viewer";
 }
 
 export function mapUser(id: string, data: DocumentData): AppUser {

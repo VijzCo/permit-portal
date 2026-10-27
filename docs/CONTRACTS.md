@@ -42,7 +42,7 @@ Timestamps (`createdAt`, `updatedAt`, `at`, `sentAt`) are server timestamps. Rep
 | `companies/{code}` | `name, code, active, createdAt`. The doc id **is** the code (`DFS`, `RWD`, `QA`), and the code is immutable |
 | `departments/{id}` | `name, companyId, active` |
 | `designations/{id}` | `name, active` |
-| `users/{uid}` | `email, displayName, role: 'admin'\|'hr', companyIds: string[], active`. Admins have `companyIds: []`; hr users need at least one company |
+| `users/{uid}` | `email, displayName, role: 'admin'\|'hr'\|'viewer', companyIds: string[], active`. Admins have `companyIds: []`; hr and viewer users need at least one company. Viewers are read-only (rules `canReadCompany`), get no alert emails and cannot write `auditLog` |
 | `employees/{id}` | `firstName, lastName, email ('' allowed), companyId, departmentId, designationId, companyName, departmentName, designationName, searchText, passport{number, nationality, issueDate, expiryDate}, active, createdAt, updatedAt, createdBy, updatedBy` |
 | `authorisations/{id}` | `employeeId, companyId, type, referenceNumber, issuedDate, expiryDate, isCurrent, supersededBy (id\|null), notes, createdAt, updatedAt, createdBy, updatedBy` |
 | `notificationLog/{authId}_{key}` | `authId, threshold, companyId, sentAt, recipients[]`. Written by the Admin SDK only |

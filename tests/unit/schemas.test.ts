@@ -3,8 +3,11 @@ import {
   accessibleCompanyIds,
   authorisationInputSchema,
   buildSearchText,
+  canEditRole,
   companyInputSchema,
+  employeeFormSchema,
   employeeInputSchema,
+  splitEmployeeForm,
   userInputSchema,
   type AppUser,
 } from "@/lib/schemas";
@@ -92,5 +95,46 @@ describe("companyInputSchema", () => {
     const r = companyInputSchema.safeParse({ name: "RW Design", code: "rwd", active: true });
     expect(r.success && r.data.code).toBe("RWD");
     expect(companyInputSchema.safeParse({ name: "X", code: "r-w", active: true }).success).toBe(false);
+  });
+});
+
+describe("employeeFormSchema (employee + optional first permit / visa)", () => {
+  const off = { enabled: false, referenceNumber: "", issuedDate: "", expiryDate: "", notes: "" };
+  const on = { enabled: true, referenceNumber: "WP-1", issuedDate: "2026-01-01", expiryDate: "2027-12-31", notes: "" };
+
+  it("ignores disabled sections", () => {
+    expect(employeeFormSchema.safeParse({ ...validEmployee, workPermit: off, visa: off }).success).toBe(true);
+  });
+  it("validates enabled sections", () => {
+    expect(employeeFormSchema.safeParse({ ...validEmployee, workPermit: on, visa: off }).success).toBe(true);
+    const r = employeeFormSchema.safeParse({ ...validEmployee, workPermit: { ...on, referenceNumber: "", expiryDate: "2025-01-01" }, visa: off });
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      const paths = r.error.issues.map((i) => i.path.join("."));
+      expect(paths).toContain("workPermit.referenceNumber");
+      expect(paths).toContain("workPermit.expiryDate");
+    }
+  });
+  it("splits employee and enabled records", () => {
+    const parsed = employeeFormSchema.parse({ ...validEmployee, workPermit: off, visa: on });
+    const { employee, workPermit, visa } = splitEmployeeForm(parsed);
+    expect(workPermit).toBeNull();
+    expect(visa?.referenceNumber).toBe("WP-1");
+    expect("visa" in employee).toBe(false);
+  });
+});
+
+describe("viewer role", () => {
+  it("needs at least one company and is read-only", () => {
+    const v = { email: "v@x.co", displayName: "V", role: "viewer", companyIds: [], active: true };
+    expect(userInputSchema.safeParse(v).success).toBe(false);
+    expect(userInputSchema.safeParse({ ...v, companyIds: ["RWD"] }).success).toBe(true);
+    expect(canEditRole("viewer")).toBe(false);
+    expect(canEditRole("hr")).toBe(true);
+    expect(canEditRole("admin")).toBe(true);
+  });
+  it("sees only its companies", () => {
+    const viewer: AppUser = { id: "v", email: "v@x.co", displayName: "V", role: "viewer", companyIds: ["QA"], active: true };
+    expect(accessibleCompanyIds(viewer, ["DFS", "RWD", "QA"])).toEqual(["QA"]);
   });
 });

@@ -23,6 +23,7 @@ import { createUser, sendPasswordReset, subscribeUsers, updateUser } from "@/lib
 import {
   createUserSchema,
   userInputSchema,
+  ROLE_LABELS,
   type AppUser,
   type CreateUserInput,
   type UserInput,
@@ -41,7 +42,8 @@ function RoleAndCompanies<T extends FieldValues>({ control, role, lockRole }: { 
             <FormLabel>Role</FormLabel>
             <FormControl>
               <NativeSelect {...field} disabled={lockRole}>
-                <NativeSelectOption value="hr">HR — selected companies only</NativeSelectOption>
+                <NativeSelectOption value="hr">HR — view and edit selected companies</NativeSelectOption>
+                <NativeSelectOption value="viewer">Viewer — view selected companies only</NativeSelectOption>
                 <NativeSelectOption value="admin">Admin — everything</NativeSelectOption>
               </NativeSelect>
             </FormControl>
@@ -50,7 +52,7 @@ function RoleAndCompanies<T extends FieldValues>({ control, role, lockRole }: { 
           </FormItem>
         )}
       />
-      {role === "hr" ? (
+      {role !== "admin" ? (
         <FormField
           control={control}
           name={"companyIds" as Path<T>}
@@ -249,7 +251,7 @@ export function UsersAdmin() {
       <PageHeader
         eyebrow="Administration"
         title="Users"
-        description="Admins manage everything. HR users see only their companies."
+        description="Admins manage everything. HR users view and edit their companies. Viewers can only look at their companies."
         actions={
           <Button onClick={() => setInviteOpen(true)}>
             <UserPlus className="size-4" aria-hidden />
@@ -279,7 +281,7 @@ export function UsersAdmin() {
                     <TableCell className="font-medium">{u.displayName}</TableCell>
                     <TableCell>{u.email}</TableCell>
                     <TableCell>
-                      <Badge variant={u.role === "admin" ? "default" : "secondary"}>{u.role}</Badge>
+                      <Badge variant={u.role === "admin" ? "default" : u.role === "viewer" ? "outline" : "secondary"}>{ROLE_LABELS[u.role]}</Badge>
                     </TableCell>
                     <TableCell className="text-sm">
                       {u.role === "admin" ? "All" : u.companyIds.map((id) => companyName.get(id) ?? id).join(", ")}

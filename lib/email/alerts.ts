@@ -11,7 +11,7 @@ export interface AlertCompany {
 
 export interface AlertUser {
   email: string;
-  role: "admin" | "hr";
+  role: "admin" | "hr" | "viewer";
   companyIds: string[];
   active: boolean;
 }

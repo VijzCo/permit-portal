@@ -16,6 +16,11 @@ const b = (d: Data, k: string): boolean => d[k] === true;
 const list = (d: Data, k: string): string[] =>
   Array.isArray(d[k]) ? (d[k] as unknown[]).filter((x): x is string => typeof x === "string") : [];
 
+/** Unknown roles are treated as viewer, so they never receive digests. */
+function toAlertRole(v: string): AlertUser["role"] {
+  return v === "admin" || v === "hr" ? v : "viewer";
+}
+
 export interface AlertData {
   companies: AlertCompany[];
   users: AlertUser[];
@@ -39,7 +44,7 @@ export async function loadAlertData(): Promise<AlertData> {
     }),
     users: users.docs.map((doc) => {
       const d = doc.data();
-      return { email: s(d, "email"), role: s(d, "role") === "admin" ? "admin" : "hr", companyIds: list(d, "companyIds"), active: b(d, "active") };
+      return { email: s(d, "email"), role: toAlertRole(s(d, "role")), companyIds: list(d, "companyIds"), active: b(d, "active") };
     }),
     employees: employees.docs.map((doc) => {
       const d = doc.data();

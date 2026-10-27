@@ -20,11 +20,14 @@ export function AuthorisationCard({
   type,
   status,
   disabled,
+  readOnly = false,
   onAction,
 }: {
   type: AuthorisationType;
   status: TypeStatus;
   disabled: boolean;
+  /** Viewers: show the record, no actions. */
+  readOnly?: boolean;
   onAction: (mode: AuthorisationDialogMode) => void;
 }) {
   const label = AUTHORISATION_TYPE_LABELS[type];
@@ -38,6 +41,7 @@ export function AuthorisationCard({
           <StatusBadge status={status.status} />
         </CardTitle>
         <CardDescription>{auth ? describe(status.daysLeft) : `No current ${label.toLowerCase()} on record.`}</CardDescription>
+        {readOnly ? null : (
         <CardAction className="flex gap-2">
           {auth ? (
             <>
@@ -57,6 +61,7 @@ export function AuthorisationCard({
             </Button>
           )}
         </CardAction>
+        )}
       </CardHeader>
       {auth ? (
         <CardContent>

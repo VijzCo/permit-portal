@@ -5,7 +5,7 @@ import { onAuthStateChanged, signOut as fbSignOut, type Auth, type User } from "
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { subscribeUserProfile } from "@/lib/repos/users";
 import { friendlyError } from "@/lib/errors";
-import type { AppUser } from "@/lib/schemas";
+import { canEditRole, type AppUser } from "@/lib/schemas";
 
 export type AuthStatus = "loading" | "signed-out" | "no-profile" | "inactive" | "ready" | "error";
 
@@ -18,6 +18,8 @@ interface AuthState {
 
 export interface AuthContextValue extends AuthState {
   isAdmin: boolean;
+  /** admin or hr; false for viewers (read-only). */
+  canEdit: boolean;
   signOut: () => Promise<void>;
 }
 
@@ -64,7 +66,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ ...state, isAdmin: state.status === "ready" && state.profile?.role === "admin", signOut }),
+    () => ({
+      ...state,
+      isAdmin: state.status === "ready" && state.profile?.role === "admin",
+      canEdit: state.status === "ready" && !!state.profile && canEditRole(state.profile.role),
+      signOut,
+    }),
     [state, signOut],
   );
 

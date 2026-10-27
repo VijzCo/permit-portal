@@ -13,15 +13,15 @@ What you need:
 
 ## Step 0 — Local check (15 min)
 
-```powershell
-cd C:\xampp\htdocs\agentic-projects\permit-portal-chat
+```bash
+cd ~/path/to/permit-portal-chat
 npm install
-Copy-Item .env.emulator.example .env.local
+cp .env.emulator.example .env.local
 npm run typecheck; npm run lint; npm test; npm run build
 ```
 
 Window 1: `npm run emulators`. Window 2:
-```powershell
+```bash
 npm run test:rules
 npm run seed
 npm run dev
@@ -42,15 +42,15 @@ npm run dev
 5. **Project settings (gear) → General → Your apps → Web `</>`:**
    - Register the app as `permit-portal-web` (no Hosting).
    - Copy the 6 config values: `apiKey`, `authDomain`, `projectId`, `storageBucket`, `messagingSenderId`, `appId`.
-6. **Project settings → Service accounts → Generate new private key.** Save the file to e.g. `C:\secure\permit-portal-sa.json`, **outside** the repo, then encode it:
-   ```powershell
-   [Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\secure\permit-portal-sa.json")) | Set-Clipboard
+6. **Project settings → Service accounts → Generate new private key.** Save the file to e.g. `~/secure/permit-portal-sa.json`, **outside** the repo, then encode it:
+   ```bash
+   base64 -i ~/secure/permit-portal-sa.json | tr -d '\n' | pbcopy
    ```
    The clipboard now holds `FIREBASE_SERVICE_ACCOUNT_JSON`. Paste it somewhere safe, such as a password manager.
 
 ## Step 2 — Deploy rules and indexes (5 min)
 
-```powershell
+```bash
 npx firebase login
 npx firebase use --add          # pick dfs-permit-portal, alias: prod
 npx firebase deploy --only firestore:rules,firestore:indexes --project prod
@@ -62,14 +62,11 @@ Then open **Firestore → Indexes** and wait until all 5 composite indexes show 
 
 Create a production `.env.prod.local` (it is git-ignored). Use the `.env.example` layout with the **real** Firebase values and `FIREBASE_SERVICE_ACCOUNT_JSON`, and **no** emulator variables. Then:
 
-```powershell
-Copy-Item .env.local .env.emulator.local   # keep your emulator copy
-Copy-Item .env.prod.local .env.local
-$env:SEED_ADMIN_EMAIL="vijan@yourcompany.com"
-$env:SEED_ADMIN_PASSWORD="Temp#Strong-2026"
-$env:SEED_ADMIN_NAME="Vijan"
-npm run seed:admin
-Copy-Item .env.emulator.local .env.local   # back to emulator mode for development
+```bash
+cp .env.local .env.emulator.local   # keep your emulator copy
+cp .env.prod.local .env.local
+SEED_ADMIN_EMAIL="vijan@yourcompany.com" SEED_ADMIN_PASSWORD='Temp#Strong-2026' SEED_ADMIN_NAME="Vijan" npm run seed:admin
+cp .env.emulator.local .env.local   # back to emulator mode for development
 ```
 
 Output should include `users/<uid> set as active admin` and `Created company DFS / RWD / QA`.
@@ -83,7 +80,7 @@ Output should include `users/<uid> set as active admin` and `Created company DFS
 3. **Certificates & secrets → New client secret**, valid 24 months. Copy the **Value** (not the ID) into `GRAPH_CLIENT_SECRET`. **Add the expiry date to your calendar.**
 4. **API permissions → Add a permission → Microsoft Graph → Application permissions → `Mail.Send` → Add**, then **Grant admin consent for <tenant>**. The status must show a green tick.
 5. **Lock the app to the one mailbox (strongly recommended).** Without this, the app could send as *any* user:
-   ```powershell
+   ```bash
    Install-Module ExchangeOnlineManagement -Scope CurrentUser   # once
    Connect-ExchangeOnline
    New-DistributionGroup -Name "PermitPortalSenders" -Alias PermitPortalSenders -Type Security -Members hr-alerts@yourcompany.com
@@ -95,7 +92,7 @@ Output should include `users/<uid> set as active admin` and `Created company DFS
 
 ## Step 5 — GitHub (5 min)
 
-```powershell
+```bash
 git init
 git add .
 git commit -m "Permit & Visa Portal v1"
@@ -121,7 +118,7 @@ Check that `.env.local`, `.env.prod.local` and the service-account JSON are **no
    | `NEXT_PUBLIC_FIREBASE_APP_ID` | 〃 |
    | `NEXT_PUBLIC_USE_FIREBASE_EMULATORS` | `false` |
    | `FIREBASE_SERVICE_ACCOUNT_JSON` | base64 from Step 1.6 |
-   | `CRON_SECRET` | `-join ((48..57)+(65..90)+(97..122) \| Get-Random -Count 48 \| % {[char]$_})` |
+   | `CRON_SECRET` | `openssl rand -hex 32` |
    | `APP_BASE_URL` | `https://permits.yourcompany.com` (or the `*.vercel.app` URL) |
    | `MAIL_TRANSPORT` | `graph` |
    | `MAIL_FROM` | `hr-alerts@yourcompany.com` |
@@ -146,8 +143,8 @@ Check that `.env.local`, `.env.prod.local` and the service-account JSON are **no
 4. Add one test employee with a work permit expiring in 10 days.
 5. **Admin → Alerts → Send test digest:** one digest is listed with the right recipients.
 6. Trigger a real run: **Vercel → Settings → Cron Jobs → Run**, or:
-   ```powershell
-   Invoke-RestMethod -Uri "https://permits.yourcompany.com/api/cron/expiry-alerts" -Headers @{ Authorization = "Bearer <CRON_SECRET>" }
+   ```bash
+   curl -s -H "Authorization: Bearer <CRON_SECRET>" https://permits.yourcompany.com/api/cron/expiry-alerts
    ```
    The response shows `sent: [...]`, and the email arrives from `hr-alerts@`.
 7. Run it again. The response shows `sent: []`, because no duplicate is sent.

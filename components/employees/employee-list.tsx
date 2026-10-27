@@ -14,6 +14,7 @@ import { EmptyState } from "@/components/layout/states";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { usePortalData } from "@/components/providers/portal-data-provider";
+import { useAuth } from "@/components/providers/auth-provider";
 import { ALL, employeeStatuses, fullName, type TypeStatus } from "@/lib/dashboard";
 import { formatDisplayDate } from "@/lib/dates";
 import { STATUS_LABELS, STATUSES, type Status } from "@/lib/status";
@@ -36,6 +37,7 @@ function StatusCell({ s }: { s: TypeStatus | undefined }) {
 
 export function EmployeeList() {
   const { employees, currentAuths, accessibleCompanies, departments, designations, now } = usePortalData();
+  const { canEdit } = useAuth();
   const [search, setSearch] = useState("");
   const [companyId, setCompanyId] = useState<string>(ALL);
   const [departmentId, setDepartmentId] = useState<string>(ALL);
@@ -83,12 +85,14 @@ export function EmployeeList() {
         title="Employees"
         description="Migrant employees and the status of their work permits and visas."
         actions={
-          <Button asChild>
-            <Link href="/employees/new">
-              <Plus className="size-4" aria-hidden />
-              Add employee
-            </Link>
-          </Button>
+          canEdit ? (
+            <Button asChild>
+              <Link href="/employees/new">
+                <Plus className="size-4" aria-hidden />
+                Add employee
+              </Link>
+            </Button>
+          ) : undefined
         }
       />
 

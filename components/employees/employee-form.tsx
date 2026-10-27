@@ -10,7 +10,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { usePortalData } from "@/components/providers/portal-data-provider";
-import { employeeInputSchema, type EmployeeInput } from "@/lib/schemas";
+import { employeeFormSchema, type EmployeeFormValues, type EmployeeInput } from "@/lib/schemas";
+import { AuthorisationFields } from "@/components/employees/authorisation-fields";
 import type { EmployeeNames } from "@/lib/repos/employees";
 
 export const EMPTY_EMPLOYEE: EmployeeInput = {
@@ -24,19 +25,25 @@ export const EMPTY_EMPLOYEE: EmployeeInput = {
   active: true,
 };
 
+/**
+ * Employee form. With `withAuthorisations` (Add employee) it also shows optional
+ * Work permit and Visa sections that are saved in the same batch.
+ */
 export function EmployeeForm({
   defaultValues,
   submitLabel,
+  withAuthorisations = false,
   onSubmit,
   onCancel,
 }: {
-  defaultValues: EmployeeInput;
+  defaultValues: EmployeeFormValues;
   submitLabel: string;
-  onSubmit: (values: EmployeeInput, names: EmployeeNames) => Promise<void>;
+  withAuthorisations?: boolean;
+  onSubmit: (values: EmployeeFormValues, names: EmployeeNames) => Promise<void>;
   onCancel: () => void;
 }) {
   const { accessibleCompanies, departments, designations } = usePortalData();
-  const form = useForm<EmployeeInput>({ resolver: zodResolver(employeeInputSchema), defaultValues });
+  const form = useForm<EmployeeFormValues>({ resolver: zodResolver(employeeFormSchema), defaultValues });
   const companyId = form.watch("companyId");
   const currentDepartmentId = defaultValues.departmentId;
   const currentDesignationId = defaultValues.designationId;
@@ -57,7 +64,7 @@ export function EmployeeForm({
     [designations, currentDesignationId],
   );
 
-  async function submit(values: EmployeeInput) {
+  async function submit(values: EmployeeFormValues) {
     const names: EmployeeNames = {
       companyName: accessibleCompanies.find((c) => c.id === values.companyId)?.name ?? "",
       departmentName: departments.find((d) => d.id === values.departmentId)?.name ?? "",
@@ -245,6 +252,13 @@ export function EmployeeForm({
             />
           </CardContent>
         </Card>
+
+        {withAuthorisations ? (
+          <>
+            <AuthorisationFields form={form} name="workPermit" />
+            <AuthorisationFields form={form} name="visa" />
+          </>
+        ) : null}
 
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onCancel} disabled={busy}>

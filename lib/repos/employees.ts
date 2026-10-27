@@ -21,6 +21,7 @@ import {
   type ErrorHandler,
 } from "@/lib/repos/shared";
 import { buildSearchText, type Employee, type EmployeeInput } from "@/lib/schemas";
+import type { AuthorisationType } from "@/lib/status";
 
 export interface EmployeeNames {
   companyName: string;
@@ -102,7 +103,24 @@ function auditView(e: Employee) {
   return rest;
 }
 
-export async function createEmployee(input: EmployeeInput, names: EmployeeNames, uid: string): Promise<string> {
+export interface InitialAuthorisationInput {
+  type: AuthorisationType;
+  referenceNumber: string;
+  issuedDate: string;
+  expiryDate: string;
+  notes: string;
+}
+
+/**
+ * Creates the employee and, optionally, their first work permit and/or visa
+ * in ONE batch (with an audit entry for each document).
+ */
+export async function createEmployee(
+  input: EmployeeInput,
+  names: EmployeeNames,
+  uid: string,
+  initial: InitialAuthorisationInput[] = [],
+): Promise<string> {
   const db = getDb();
   const ref = doc(collection(db, COLLECTIONS.employees));
   const fields = employeeFields(input, names);
@@ -115,6 +133,30 @@ export async function createEmployee(input: EmployeeInput, names: EmployeeNames,
     updatedBy: uid,
   });
   appendAudit(batch, { entity: "employee", entityId: ref.id, action: "create", before: null, after: fields }, uid);
+
+  for (const a of initial) {
+    const authRef = doc(collection(db, COLLECTIONS.authorisations));
+    const authFields = {
+      employeeId: ref.id,
+      companyId: input.companyId,
+      type: a.type,
+      referenceNumber: a.referenceNumber,
+      issuedDate: a.issuedDate,
+      expiryDate: a.expiryDate,
+      notes: a.notes,
+      isCurrent: true,
+      supersededBy: null,
+    };
+    batch.set(authRef, {
+      ...authFields,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      createdBy: uid,
+      updatedBy: uid,
+    });
+    appendAudit(batch, { entity: "authorisation", entityId: authRef.id, action: "create", before: null, after: authFields }, uid);
+  }
+
   await batch.commit();
   return ref.id;
 }

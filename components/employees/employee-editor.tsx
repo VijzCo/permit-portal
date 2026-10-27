@@ -7,11 +7,12 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/page-header";
 import { ErrorState, LoadingState } from "@/components/layout/states";
 import { EMPTY_EMPLOYEE, EmployeeForm } from "@/components/employees/employee-form";
+import { emptyInitialAuthorisation } from "@/components/employees/authorisation-fields";
 import { useCurrentUser } from "@/components/providers/auth-provider";
 import { usePortalData } from "@/components/providers/portal-data-provider";
 import { friendlyError } from "@/lib/errors";
-import { createEmployee, subscribeEmployee, updateEmployee } from "@/lib/repos/employees";
-import { employeeFullName, type Employee, type EmployeeInput } from "@/lib/schemas";
+import { createEmployee, subscribeEmployee, updateEmployee, type InitialAuthorisationInput } from "@/lib/repos/employees";
+import { employeeFullName, splitEmployeeForm, type Employee, type EmployeeFormValues } from "@/lib/schemas";
 
 export function EmployeeCreate() {
   const router = useRouter();
@@ -21,15 +22,29 @@ export function EmployeeCreate() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeader title="Add employee" description="Add the employee first, then their work permit and visa." />
+      <PageHeader
+        eyebrow="Workforce"
+        title="Add employee"
+        description="Enter the employee, their passport and, optionally, their current work permit and visa. All of it is saved together."
+      />
       <EmployeeForm
-        defaultValues={{ ...EMPTY_EMPLOYEE, companyId: onlyCompany }}
+        withAuthorisations
+        defaultValues={{
+          ...EMPTY_EMPLOYEE,
+          companyId: onlyCompany,
+          workPermit: emptyInitialAuthorisation(),
+          visa: emptyInitialAuthorisation(),
+        }}
         submitLabel="Create employee"
         onCancel={() => router.push("/employees")}
         onSubmit={async (values, names) => {
+          const { employee, workPermit, visa } = splitEmployeeForm(values);
+          const initial: InitialAuthorisationInput[] = [];
+          if (workPermit) initial.push({ type: "WORK_PERMIT", ...pick(workPermit) });
+          if (visa) initial.push({ type: "VISA", ...pick(visa) });
           try {
-            const id = await createEmployee(values, names, user.id);
-            toast.success(`${employeeFullName(values)} added.`);
+            const id = await createEmployee(employee, names, user.id, initial);
+            toast.success(`${employeeFullName(employee)} added${initial.length ? ` with ${initial.length === 2 ? "work permit and visa" : initial[0]?.type === "VISA" ? "visa" : "work permit"}` : ""}.`);
             router.push(`/employees/${id}`);
           } catch (err) {
             toast.error(friendlyError(err));
@@ -40,7 +55,11 @@ export function EmployeeCreate() {
   );
 }
 
-function toInput(e: Employee): EmployeeInput {
+function pick(a: { referenceNumber: string; issuedDate: string; expiryDate: string; notes: string }) {
+  return { referenceNumber: a.referenceNumber, issuedDate: a.issuedDate, expiryDate: a.expiryDate, notes: a.notes };
+}
+
+function toInput(e: Employee): EmployeeFormValues {
   return {
     firstName: e.firstName,
     lastName: e.lastName,
@@ -50,6 +69,8 @@ function toInput(e: Employee): EmployeeInput {
     designationId: e.designationId,
     passport: { ...e.passport },
     active: e.active,
+    workPermit: emptyInitialAuthorisation(),
+    visa: emptyInitialAuthorisation(),
   };
 }
 
@@ -88,7 +109,7 @@ export function EmployeeEdit({ id }: { id: string }) {
         onCancel={() => router.push(`/employees/${employee.id}`)}
         onSubmit={async (values, names) => {
           try {
-            await updateEmployee(employee, values, names, user.id);
+            await updateEmployee(employee, splitEmployeeForm(values).employee, names, user.id);
             toast.success("Employee updated.");
             router.push(`/employees/${employee.id}`);
           } catch (err) {

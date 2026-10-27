@@ -10,21 +10,21 @@ Light / dark / system theme: toggle at the bottom of the sidebar (and on the sig
 
 ---
 
-## 1. Local setup (Windows 11, PowerShell)
+## 1. Local setup (macOS, Terminal)
 
-Prerequisites: **Node 20.9+**, **Java 17+** (Temurin is fine; the Firestore emulator needs it), VS Code.
+Prerequisites: **Node 20.9+** (`brew install node`), **Java 17+** for the Firestore emulator (`brew install --cask temurin`), VS Code.
 
-```powershell
-cd C:\xampp\htdocs\agentic-projects\permit-portal-chat
+```bash
+cd ~/path/to/permit-portal-chat
 npm install
-Copy-Item .env.emulator.example .env.local
+cp .env.emulator.example .env.local
 ```
 
 The shadcn components are already in `components/ui`, so there is no `shadcn add` step.
 
 ### Checks
 
-```powershell
+```bash
 npm run typecheck
 npm run lint
 npm test            # unit tests (dates, status, schemas, dashboard, templates, alerts, mail transport)
@@ -34,12 +34,12 @@ npm run build
 ## 2. Emulators and demo data
 
 Window 1:
-```powershell
+```bash
 npm run emulators          # Auth :9099, Firestore :8080, UI http://127.0.0.1:4000
 ```
 
 Window 2:
-```powershell
+```bash
 npm run test:rules         # security-rules matrix (needs the emulator)
 npm run seed               # wipes the EMULATOR and loads demo data
 npm run dev                # http://localhost:3000
@@ -53,6 +53,7 @@ Demo users (password `Demo#12345`):
 | hr.rwd@demo.local | hr | RW Design |
 | hr.dfs@demo.local | hr | DutyFreeSourcing |
 | hr.qa@demo.local | hr | Quantum Apparel |
+| viewer@demo.local | viewer | RW Design, read-only |
 | inactive@demo.local | hr (inactive) | blocked at sign-in |
 
 The seed data covers every status and alert threshold relative to today, a renewal history, a missing visa, passports expiring within 90 days, and one inactive employee.
@@ -61,8 +62,8 @@ The seed data covers every status and alert threshold relative to today, a renew
 
 With `npm run dev` running and `CRON_SECRET=local-dev-secret-change-me` in `.env.local`:
 
-```powershell
-Invoke-RestMethod -Uri "http://localhost:3000/api/cron/expiry-alerts?dryRun=1" -Headers @{ Authorization = "Bearer local-dev-secret-change-me" } | ConvertTo-Json -Depth 6
+```bash
+curl -s -H "Authorization: Bearer local-dev-secret-change-me" "http://localhost:3000/api/cron/expiry-alerts?dryRun=1" | python3 -m json.tool
 ```
 
 You can also go to **Admin → Alerts → Send test digest** as an admin. A dry run sends and writes nothing.
@@ -71,7 +72,7 @@ To test a **real** run locally, fill in the `GRAPH_*` variables and `MAIL_FROM` 
 
 ### End-to-end test (Playwright)
 
-```powershell
+```bash
 npx playwright install chromium   # first time only
 npm run seed                       # fresh data (the test renews a record)
 npm run test:e2e
@@ -87,7 +88,7 @@ npm run test:e2e
 
 ### Deploy rules and indexes
 
-```powershell
+```bash
 npx firebase login
 npx firebase use --add            # pick the project, alias "prod"
 npx firebase deploy --only firestore:rules,firestore:indexes --project prod
@@ -99,8 +100,8 @@ Index builds take a few minutes. Queries show "index is still building" until th
 
 **Project settings → Service accounts → Generate new private key.** Keep the JSON file outside the repo, then base64-encode it:
 
-```powershell
-[Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\secure\permit-portal-sa.json")) | Set-Clipboard
+```bash
+base64 -i ~/secure/permit-portal-sa.json | tr -d '\n' | pbcopy
 ```
 
 Paste the result as `FIREBASE_SERVICE_ACCOUNT_JSON`.
@@ -109,9 +110,8 @@ Paste the result as `FIREBASE_SERVICE_ACCOUNT_JSON`.
 
 Put `FIREBASE_SERVICE_ACCOUNT_JSON` (for the **production** project) in `.env.local`, and remove the emulator lines from it (`FIRESTORE_EMULATOR_HOST`, `FIREBASE_AUTH_EMULATOR_HOST`). Then run:
 
-```powershell
-$env:SEED_ADMIN_EMAIL="vijan@yourcompany.com"; $env:SEED_ADMIN_PASSWORD="Choose-A-Strong-Temp#1"; $env:SEED_ADMIN_NAME="Vijan"
-npm run seed:admin
+```bash
+SEED_ADMIN_EMAIL="vijan@yourcompany.com" SEED_ADMIN_PASSWORD='Choose-A-Strong-Temp#1' SEED_ADMIN_NAME="Vijan" npm run seed:admin
 ```
 
 This creates the Auth user and `users/{uid}` with the admin role, and also creates the companies `DFS`, `RWD` and `QA` if they are missing. Sign in, then change the password via **Forgot password?**.
@@ -127,6 +127,7 @@ Next, in the portal: **Admin → Departments / Designations** (add master data),
 5. Create the shared mailbox (e.g. `hr-alerts@yourcompany.com`) in the Exchange admin center and set `MAIL_FROM` to it.
 6. **Recommended:** restrict the app to that one mailbox (Exchange Online PowerShell):
    ```powershell
+   # On a Mac: brew install powershell/tap/powershell, then run `pwsh`
    Connect-ExchangeOnline
    New-DistributionGroup -Name "PermitPortalSenders" -Type Security -Members hr-alerts@yourcompany.com
    New-ApplicationAccessPolicy -AppId <GRAPH_CLIENT_ID> -PolicyScopeGroupId PermitPortalSenders@yourcompany.com -AccessRight RestrictAccess -Description "Permit portal may only send as hr-alerts"
@@ -156,6 +157,8 @@ SMTP basic auth is **not** used, because Microsoft disables it by default from e
 5. Add your domain in Vercel, and in Firebase Auth authorised domains.
 
 ## 6. How it works
+
+- **Roles:** `admin` (everything), `hr` (view + edit their companies), `viewer` (view their companies only; no edits, no alert emails, no audit log).
 
 - **Status** (`lib/status.ts`) is derived and never stored. It is computed against today in Africa/Maseru: VALID >30 days, EXPIRING 0–30, EXPIRED <0, MISSING = no current record.
 - **Renew** writes one batch: a new current record, the old one marked `isCurrent:false, supersededBy:newId`, and an audit entry. History is never deleted.

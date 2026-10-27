@@ -35,8 +35,18 @@ service cloud.firestore {
       return profile().companyIds;
     }
 
+    function isViewer() {
+      return isActive() && profile().role == 'viewer';
+    }
+
+    // Write access: admin everywhere, hr only in their companies.
     function canAccessCompany(companyId) {
       return isAdmin() || (isHr() && companyId in userCompanyIds());
+    }
+
+    // Read access: as above, plus read-only viewers in their companies.
+    function canReadCompany(companyId) {
+      return canAccessCompany(companyId) || (isViewer() && companyId in userCompanyIds());
     }
 
     function isIsoDate(v) {
@@ -80,7 +90,7 @@ service cloud.firestore {
       return keysExactly(['email', 'displayName', 'role', 'companyIds', 'active'], [])
         && isText(data().email, 3, 254)
         && isText(data().displayName, 1, 120)
-        && data().role in ['admin', 'hr']
+        && data().role in ['admin', 'hr', 'viewer']
         && data().companyIds is list
         && data().companyIds.size() <= 30
         && (data().role == 'admin' || data().companyIds.size() > 0)
@@ -172,7 +182,7 @@ service cloud.firestore {
     }
 
     match /employees/{employeeId} {
-      allow read: if canAccessCompany(resource.data.companyId);
+      allow read: if canReadCompany(resource.data.companyId);
       allow create: if canAccessCompany(data().companyId)
         && validEmployee()
         && stampsOnCreate();
@@ -227,7 +237,7 @@ service cloud.firestore {
     }
 
     match /authorisations/{authId} {
-      allow read: if canAccessCompany(resource.data.companyId);
+      allow read: if canReadCompany(resource.data.companyId);
       allow create: if canAccessCompany(data().companyId)
         && validAuthorisation()
         && data().isCurrent == true
@@ -263,7 +273,7 @@ service cloud.firestore {
 
     match /auditLog/{id} {
       allow read: if isAdmin();
-      allow create: if isActive() && validAudit();
+      allow create: if (isAdmin() || isHr()) && validAudit();
       allow update, delete: if false;
     }
   }

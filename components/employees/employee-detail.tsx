@@ -26,7 +26,7 @@ import {
 } from "@/components/authorisations/authorisation-dialog";
 import { HistoryTimeline } from "@/components/authorisations/history-timeline";
 import { ErrorState, LoadingState } from "@/components/layout/states";
-import { useCurrentUser } from "@/components/providers/auth-provider";
+import { useAuth, useCurrentUser } from "@/components/providers/auth-provider";
 import { usePortalData } from "@/components/providers/portal-data-provider";
 import { employeeStatuses, fullName } from "@/lib/dashboard";
 import { daysUntil, formatDisplayDate } from "@/lib/dates";
@@ -47,6 +47,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 export function EmployeeDetail({ id }: { id: string }) {
   const user = useCurrentUser();
+  const { canEdit } = useAuth();
   const { now } = usePortalData();
   const [employee, setEmployee] = useState<Employee | null | undefined>(undefined);
   const [records, setRecords] = useState<Authorisation[] | null>(null);
@@ -113,6 +114,7 @@ export function EmployeeDetail({ id }: { id: string }) {
               </p>
             </div>
           </div>
+          {canEdit ? (
           <div className="flex gap-2">
             <Button asChild variant="outline">
               <Link href={`/employees/${employee.id}/edit`}>
@@ -149,6 +151,9 @@ export function EmployeeDetail({ id }: { id: string }) {
               </Button>
             )}
           </div>
+          ) : (
+            <Badge variant="secondary" className="self-start">View only</Badge>
+          )}
         </div>
       </div>
 
@@ -180,6 +185,19 @@ export function EmployeeDetail({ id }: { id: string }) {
       </Card>
 
       {statuses ? (
+        <section aria-labelledby="docs-heading" className="space-y-3">
+          <div>
+            <h2 id="docs-heading" className="text-lg font-semibold tracking-tight">Work permit &amp; visa</h2>
+            <p className="text-sm text-muted-foreground">
+              {canEdit ? (
+                <>
+              Add the current record, correct it with <span className="font-medium">Edit</span>, or <span className="font-medium">Renew</span> when a new one is issued (the old one moves to history).
+                </>
+              ) : (
+                "Current records and full history. Your account is view-only."
+              )}
+            </p>
+          </div>
         <div className="grid gap-4 lg:grid-cols-2">
           {AUTHORISATION_TYPES.map((type) => (
             <AuthorisationCard
@@ -187,10 +205,12 @@ export function EmployeeDetail({ id }: { id: string }) {
               type={type}
               status={statuses[type]}
               disabled={!employee.active}
+              readOnly={!canEdit}
               onAction={(mode) => open(type, mode)}
             />
           ))}
         </div>
+        </section>
       ) : null}
 
       <div className="grid gap-4 lg:grid-cols-2">

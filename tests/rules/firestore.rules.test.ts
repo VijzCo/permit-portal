@@ -34,6 +34,7 @@ const UID = {
   hrRwd: "u-hr-rwd",
   hrDfs: "u-hr-dfs",
   inactive: "u-inactive",
+  viewerRwd: "u-viewer-rwd",
   noProfile: "u-no-profile",
 } as const;
 
@@ -122,6 +123,7 @@ beforeEach(async () => {
     await setDoc(doc(d, "users", UID.admin), { email: "admin@x.co", displayName: "Admin", role: "admin", companyIds: [], active: true });
     await setDoc(doc(d, "users", UID.hrRwd), { email: "rwd@x.co", displayName: "HR RWD", role: "hr", companyIds: ["RWD"], active: true });
     await setDoc(doc(d, "users", UID.hrDfs), { email: "dfs@x.co", displayName: "HR DFS", role: "hr", companyIds: ["DFS"], active: true });
+    await setDoc(doc(d, "users", UID.viewerRwd), { email: "view@x.co", displayName: "Viewer RWD", role: "viewer", companyIds: ["RWD"], active: true });
     await setDoc(doc(d, "users", UID.inactive), { email: "off@x.co", displayName: "Off", role: "hr", companyIds: ["RWD"], active: false });
     for (const c of ["RWD", "DFS"]) {
       await setDoc(doc(d, "companies", c), { name: c, code: c, active: true, createdAt: past });
@@ -388,5 +390,56 @@ describe("auditLog", () => {
   it("entries are immutable", async () => {
     await assertFails(updateDoc(doc(as(UID.admin), "auditLog", "log-1"), { action: "create" }));
     await assertFails(deleteDoc(doc(as(UID.admin), "auditLog", "log-1")));
+  });
+});
+
+// ======================================================================= viewer
+describe("viewer (read-only, company-scoped)", () => {
+  it("reads own-company employees and authorisations", async () => {
+    const d = as(UID.viewerRwd);
+    await assertSucceeds(getDoc(doc(d, "employees", "e-rwd")));
+    await assertSucceeds(getDoc(doc(d, "authorisations", "a-rwd")));
+    await assertSucceeds(getDocs(query(collection(d, "employees"), where("companyId", "==", "RWD"))));
+    await assertSucceeds(getDocs(query(collection(d, "authorisations"), where("companyId", "==", "RWD"), where("isCurrent", "==", true))));
+  });
+  it("cannot read other companies", async () => {
+    const d = as(UID.viewerRwd);
+    await assertFails(getDoc(doc(d, "employees", "e-dfs")));
+    await assertFails(getDoc(doc(d, "authorisations", "a-dfs")));
+    await assertFails(getDocs(query(collection(d, "employees"), where("companyId", "==", "DFS"))));
+  });
+  it("reads master data and own profile only", async () => {
+    const d = as(UID.viewerRwd);
+    await assertSucceeds(getDocs(collection(d, "companies")));
+    await assertSucceeds(getDocs(collection(d, "departments")));
+    await assertSucceeds(getDocs(collection(d, "designations")));
+    await assertSucceeds(getDoc(doc(d, "users", UID.viewerRwd)));
+    await assertFails(getDoc(doc(d, "users", UID.admin)));
+  });
+  it("cannot create or update employees", async () => {
+    const d = as(UID.viewerRwd);
+    await assertFails(setDoc(doc(d, "employees", "v-new"), employeeData("RWD", UID.viewerRwd)));
+    await assertFails(updateDoc(doc(d, "employees", "e-rwd"), { firstName: "X", updatedAt: serverTimestamp(), updatedBy: UID.viewerRwd }));
+  });
+  it("cannot create, update or renew authorisations", async () => {
+    const d = as(UID.viewerRwd);
+    await assertFails(setDoc(doc(d, "authorisations", "v-a"), authData("e-rwd", "RWD", UID.viewerRwd, { type: "VISA" })));
+    await assertFails(updateDoc(doc(d, "authorisations", "a-rwd"), { referenceNumber: "X", updatedAt: serverTimestamp(), updatedBy: UID.viewerRwd }));
+    const batch = writeBatch(d);
+    batch.set(doc(d, "authorisations", "a-rwd-v2"), authData("e-rwd", "RWD", UID.viewerRwd, { issuedDate: "2028-01-01", expiryDate: "2029-12-31" }));
+    batch.update(doc(d, "authorisations", "a-rwd"), { isCurrent: false, supersededBy: "a-rwd-v2", updatedAt: serverTimestamp(), updatedBy: UID.viewerRwd });
+    await assertFails(batch.commit());
+  });
+  it("cannot write master data, users or the audit log, nor read the audit log", async () => {
+    const d = as(UID.viewerRwd);
+    await assertFails(setDoc(doc(d, "designations", "v-d"), { name: "X", active: true }));
+    await assertFails(updateDoc(doc(d, "users", UID.viewerRwd), { role: "hr" }));
+    await assertFails(setDoc(doc(d, "auditLog", "v-log"), auditData(UID.viewerRwd)));
+    await assertFails(getDoc(doc(d, "auditLog", "log-1")));
+  });
+  it("admin can create a viewer, who needs at least one company", async () => {
+    const d = as(UID.admin);
+    await assertSucceeds(setDoc(doc(d, "users", "new-viewer"), { email: "nv@x.co", displayName: "NV", role: "viewer", companyIds: ["DFS"], active: true }));
+    await assertFails(setDoc(doc(d, "users", "bad-viewer"), { email: "bv@x.co", displayName: "BV", role: "viewer", companyIds: [], active: true }));
   });
 });
